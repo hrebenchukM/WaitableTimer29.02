@@ -79,7 +79,7 @@ BEGIN
     LTEXT           "Время для задачи истекло",IDC_STATIC,41,18,94,8
     LTEXT           "Статический",IDC_STATIC,61,34,43,8
     DEFPUSHBUTTON   "Успешно",IDGOOD,23,57,50,14
-    PUSHBUTTON      "Неудача",IDCANCEL,101,57,50,14
+    PUSHBUTTON      "Неудача",IDNOTOK,101,57,50,14
 END
 
 
