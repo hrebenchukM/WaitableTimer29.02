@@ -17,4 +17,5 @@ public:
 	HWND hButton, hEdit1, hSpin1, hEdit2, hSpin2, hEdit3, hEdit4, hSpin3, hDialog,hList1,hList2;
 	HICON hIcon;
 	PNOTIFYICONDATA pNID;
+	
 };

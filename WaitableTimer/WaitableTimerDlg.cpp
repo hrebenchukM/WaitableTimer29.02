@@ -2,13 +2,11 @@
 #define ID_TRAYICON WM_USER
 #include "WaitableTimerDlg.h"
 
-CWaitableTimerDlg* CWaitableTimerDlg::ptr = NULL;
-
 
 INT_PTR CALLBACK SecondDialogProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam);
 
 
-
+CWaitableTimerDlg* CWaitableTimerDlg::ptr = NULL;
 
 CWaitableTimerDlg::CWaitableTimerDlg(void)
 {
@@ -26,6 +24,9 @@ void CWaitableTimerDlg::Cls_OnClose(HWND hwnd)
 	EndDialog(hwnd, 0);
 }
 
+
+
+
 BOOL CWaitableTimerDlg::Cls_OnInitDialog(HWND hwnd, HWND hwndFocus, LPARAM lParam)
 {
 	hDialog = hwnd;
@@ -42,10 +43,9 @@ BOOL CWaitableTimerDlg::Cls_OnInitDialog(HWND hwnd, HWND hwndFocus, LPARAM lPara
 	
 	SendMessage(hSpin1, UDM_SETRANGE32, 0, 23);
 	SendMessage(hSpin2, UDM_SETRANGE32, 0, 59);
+
+	// Получим дескриптор экземпляра приложения
 	HINSTANCE hInst = GetModuleHandle(NULL);
-
-
-
 
 	hIcon = LoadIcon(hInst, MAKEINTRESOURCE(IDI_ICON1)); // загружаем иконку
 	SetClassLong(hDialog, GCL_HICON, LONG(hIcon)); // устанавливаем иконку в главном окне приложения
@@ -75,26 +75,18 @@ BOOL CWaitableTimerDlg::Cls_OnInitDialog(HWND hwnd, HWND hwndFocus, LPARAM lPara
 	lstrcpy(pNID->szInfo, TEXT("Приложение демонстрирует работу таймера синхронизации"));
 	lstrcpy(pNID->szInfoTitle, TEXT("Будильник!"));
 	pNID->uID = ID_TRAYICON; // предопределённый идентификатор иконки
-
-
 	return TRUE;
-
-
-
 }
-
 
 
 
 DWORD WINAPI Thread(LPVOID lp) {
 	CWaitableTimerDlg* p = (CWaitableTimerDlg*)lp;
 	HANDLE hTimer = CreateWaitableTimer(NULL, TRUE, NULL);// создаем таймер синхронизации
-
 	TCHAR buffer[256];
-
-	
-
 	GetWindowText(p->hEdit3, buffer, 256);
+
+
 
 	TCHAR timeBuffer[10];
 	int hours, minutes;
@@ -136,19 +128,16 @@ DWORD WINAPI Thread(LPVOID lp) {
 	LocalFileTimeToFileTime(&ft, &ft); // преобразуем местное время в UTC-время 
 	SetWaitableTimer(hTimer, (LARGE_INTEGER*)&ft, 0, NULL, NULL, FALSE); // устанавливаем таймер
 
-	// ожидаем переход таймера в сигнальное состояние
+
+
+    // ожидаем переход таймера в сигнальное состояние
 	if (WaitForSingleObject(hTimer, INFINITE) == WAIT_OBJECT_0) {
+		
 		DialogBox(NULL, MAKEINTRESOURCE(IDD_DIALOG2), p->hDialog, SecondDialogProc); // Открываем второе окно
 	}
 
 
-	//if (WaitForSingleObject(hTimer, INFINITE) == WAIT_OBJECT_0) {
-	//	HWND hSecondDialog = CreateDialog(GetModuleHandle(NULL), MAKEINTRESOURCE(IDD_DIALOG2), p->hDialog, SecondDialogProc);
-	//	if (hSecondDialog != NULL) {
-	//		ShowWindow(hSecondDialog, SW_SHOW);
-	//		UpdateWindow(hSecondDialog);
-	//	}
-	//}
+
 
 	
 
@@ -179,7 +168,6 @@ void CWaitableTimerDlg::Cls_OnCommand(HWND hwnd, int id, HWND hwndCtl, UINT code
 		EnableWindow(hEdit2, FALSE);
 		EnableWindow(hEdit3, FALSE);
 		EnableWindow(hEdit4, FALSE);
-		ShowWindow(hwnd, SW_HIDE); // Прячем окно
 		Shell_NotifyIcon(NIM_ADD, pNID); // Добавляем иконку в трэй
 	}
 	if (id == IDC_BUTTON2) {
@@ -190,6 +178,38 @@ void CWaitableTimerDlg::Cls_OnCommand(HWND hwnd, int id, HWND hwndCtl, UINT code
 	}
 	if (id == IDC_BUTTON3)
 	{
+		int selIndex = SendMessage(hList1, LB_GETCURSEL, 0, 0);
+		if (selIndex != LB_ERR) {
+			TCHAR taskInfo[256];
+			GetWindowText(hEdit2, taskInfo, 256); 
+			lstrcat(taskInfo, _T(":"));
+			TCHAR timeBuffer[10];
+			GetWindowText(hEdit4, timeBuffer, 10); 
+			lstrcat(taskInfo, timeBuffer);
+
+			SendMessage(hList1, LB_DELETESTRING, selIndex, 0);
+			SendMessage(hList1, LB_INSERTSTRING, selIndex, reinterpret_cast<LPARAM>(taskInfo)); 
+
+			// Перезапускаем таймер для обновленной задачи
+			HANDLE hThread = CreateThread(NULL, 0, Thread, this, 0, NULL);
+			CloseHandle(hThread);
+
+			SetWindowText(hEdit2, _T("")); 
+			SetWindowText(hEdit4, _T("")); 
+		}
+	
+	}
+}
+
+
+
+
+void CWaitableTimerDlg::Cls_OnSize(HWND hwnd, UINT state, int cx, int cy)
+{
+	if (state == SIZE_MINIMIZED)
+	{
+		ShowWindow(hwnd, SW_HIDE); // Прячем окно
+		Shell_NotifyIcon(NIM_ADD, pNID); // Добавляем иконку в трэй
 	}
 }
 
@@ -209,19 +229,7 @@ void CWaitableTimerDlg::OnTrayIcon(WPARAM wp, LPARAM lp)
 
 
 
-
-void CWaitableTimerDlg::Cls_OnSize(HWND hwnd, UINT state, int cx, int cy)
-{
-	if (state == SIZE_MINIMIZED)
-	{
-		ShowWindow(hwnd, SW_HIDE); // Прячем окно
-		Shell_NotifyIcon(NIM_ADD, pNID); // Добавляем иконку в трэй
-	}
-}
-
-
-
-INT_PTR CALLBACK CWaitableTimerDlg::DlgProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
+BOOL CALLBACK CWaitableTimerDlg::DlgProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	switch (message)
 	{
@@ -230,7 +238,7 @@ INT_PTR CALLBACK CWaitableTimerDlg::DlgProc(HWND hwnd, UINT message, WPARAM wPar
 		HANDLE_MSG(hwnd, WM_COMMAND, ptr->Cls_OnCommand);
 		HANDLE_MSG(hwnd, WM_SIZE, ptr->Cls_OnSize);
 	}
-	
+	// пользовательское сообщение
 	if (message == WM_ICON)
 	{
 		ptr->OnTrayIcon(wParam, lParam);
@@ -246,22 +254,40 @@ INT_PTR CALLBACK SecondDialogProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM
 	HWND hButtonOK;
 	HWND hButtonNOTOK;
 
+	 //HWND hList1;
+	 //HWND hList2;
+
+	
 	switch (message)
 	{
 	case WM_INITDIALOG:
 		
 		hDialog2 = hwnd;
-		
 		hButtonOK = GetDlgItem(hwnd, IDGOOD);
 		hButtonNOTOK = GetDlgItem(hwnd, IDNOTOK);
+		/*hList1 = GetDlgItem(hwnd, IDC_LIST1);
+		hList2 = GetDlgItem(hwnd, IDC_LIST2);*/
 
 		return TRUE;
 
 	case WM_COMMAND:
-	
 		switch (LOWORD(wParam))
 		{
 		case IDGOOD:
+		{
+
+			/*int selIndex = SendMessage(hList1, LB_GETCURSEL, 0, 0);
+			if (selIndex != LB_ERR)
+			{
+				TCHAR taskInfo[256];
+				SendMessage(hList1, LB_GETTEXT, selIndex, reinterpret_cast<LPARAM>(taskInfo));
+
+				SendMessage(hList2, LB_ADDSTRING, 0, reinterpret_cast<LPARAM>(taskInfo));
+				SendMessage(hList1, LB_DELETESTRING, selIndex, 0);
+			}*/
+			
+				
+			}
 			break;
 		case IDNOTOK:
 			break;
@@ -270,7 +296,7 @@ INT_PTR CALLBACK SecondDialogProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM
 			return TRUE;
 		}
 		break;
-	}
+		}
 
-	return FALSE;
+		return FALSE;
 }
